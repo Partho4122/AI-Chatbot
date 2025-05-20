@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Anthea Virtual Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f9fafb;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .chat-window {
+            max-width: 600px;
+            width: 100%;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 24px;
+            padding: 20px;
+            margin: 0;
+            background-color: #f6f7f8;
+            border-bottom: 1px solid #e9ebed;
+        }
+
+        .chat-log {
+            max-height: 400px;
+            overflow-y: scroll;
+            padding: 20px;
+            margin: 0;
+            background-color: #f9fafb;
+        }
+
+        .user-message,
+        .assistant-message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .user-message .message-text,
+        .assistant-message .message-text {
+            background-color: #f6f7f8;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 70%;
+        }
+
+        .user-message .message-text {
+            margin-left: auto;
+        }
+
+        .assistant-message .message-text {
+            margin-right: auto;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            background-color: #fff;
+            border-top: 1px solid #e9ebed;
+        }
+
+        .input-text {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #e9ebed;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .input-button {
+            padding: 12px 20px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .mic-icon {
+            color: #4CAF50;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-window">
+            <h1>Anthea, Your Virtual Assistant</h1>
+            
+            <div class="chat-log" id="chatLog">
+                <!-- Chat messages will be dynamically added here -->
+            </div>
+            
+            <div class="input-container">
+                <i class="fas fa-microphone mic-icon" onclick="startListening()"></i>
+                <input type="text" id="userInput" class="input-text" placeholder="Type your message..." />
+                <button onclick="sendMessage()" class="input-button">Send</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const chatLog = document.getElementById('chatLog');
+        const userInput = document.getElementById('userInput');
+        const synth = window.speechSynthesis; // Create a speech synthesis instance
+        const recognition = new webkitSpeechRecognition(); // Create a speech recognition instance
+
+        function sendMessage() {
+            const message = userInput.value;
+            appendUserMessage(message);
+            scrollToBottom();
+            userInput.value = '';
+            processMessage(message);
+        }
+
+        function processMessage(message) {
+            fetch('/process', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    'message': message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const answer = data.answer;
+                appendAssistantMessage(answer);
+                speakResponse(answer); // Speak the response
+                scrollToBottom();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function appendUserMessage(message) {
+            const userMessage = createMessageElement('user', message);
+            chatLog.appendChild(userMessage);
+        }
+
+        function appendAssistantMessage(message) {
+            const assistantMessage = createMessageElement('assistant', message);
+            chatLog.appendChild(assistantMessage);
+        }
+
+        function createMessageElement(sender, message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `${sender}-message`;
+
+            const messageText = document.createElement('span');
+            messageText.className = 'message-text';
+            messageText.textContent = message;
+
+            messageElement.appendChild(messageText);
+
+            return messageElement;
+        }
+
+        function scrollToBottom() {
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        function speakResponse(response) {
+            const speechText = new SpeechSynthesisUtterance(response);
+            speechText.rate = 1.0; // Adjust the speech rate if needed
+            speechText.voiceURI = 'Google UK English Female'; // Set the voice URI to a female voice
+            speechText.lang = 'en-GB'; // Set the language to British English
+            synth.speak(speechText);
+        }
+
+
+        function startListening() {
+            recognition.start();
+        }
+
+        recognition.onresult = function(event) {
+            const voiceInput = event.results[0][0].transcript;
+            userInput.value = voiceInput;
+            sendMessage(); // Automatically send the voice input as a message
+        };
+
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Example response from the voice assistant
+        const welcomeMessage = "Welcome I'm Anthea! How can I assist you today?";
+        appendAssistantMessage(welcomeMessage);
+        speakResponse(welcomeMessage);
+    </script>
+</body>
+</html>
